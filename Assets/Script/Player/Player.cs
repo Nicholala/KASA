@@ -47,6 +47,7 @@ public class Player : FSM
     public float glideSpeedY;
 
     [Header("重力调整")]
+    public float gravity;
     public float dropAccelerateTime;
     public float maxDropSpeed;
     public bool CanUsingGravityAdjuster = true;
@@ -192,6 +193,7 @@ public class Player : FSM
         }
         if (Input.GetAxisRaw("Glide") == 1)
         {
+            gravity = Rig.gravityScale;
             currentState = PlayerFSMState.Glide;
         }
         if (Input.GetAxis("Attack") == 1)
@@ -246,6 +248,7 @@ public class Player : FSM
         }
         if (Input.GetAxisRaw("Glide") == 1)
         {
+            gravity=Rig.gravityScale;
             currentState = PlayerFSMState.Glide;
         }
         if (transform.position.y < (JumpStartY - 0.1f))
@@ -270,11 +273,14 @@ public class Player : FSM
         }
         if (Input.GetAxisRaw("Glide") != 1)
         {
+            Rig.gravityScale = gravity;
             currentState = PlayerFSMState.Drop;
         }
         if (isOnGround)
         {
+            Rig.gravityScale = gravity;
             currentState = PlayerFSMState.Run;
+            
         }
     }
 
