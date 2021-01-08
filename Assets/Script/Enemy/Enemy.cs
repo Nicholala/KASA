@@ -45,6 +45,7 @@ public class Enemy : MonoBehaviour
     {
         health -= damage;
         FlashColor(flashtime);
+        GameController.cameraShake.Shake();
     }
 
     void FlashColor(float time)

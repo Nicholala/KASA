@@ -63,7 +63,6 @@ public class Player : FSM
     float velocityX;
     public Animator animator;
 
-
     protected override void Initialize()
     {
         currentState = PlayerFSMState.Run;
@@ -201,6 +200,7 @@ public class Player : FSM
             lastState = currentState;
             currentState = PlayerFSMState.Attack;
             animator.SetTrigger("Attack");
+            
         }
     }
 
