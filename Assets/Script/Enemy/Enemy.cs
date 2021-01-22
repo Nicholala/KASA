@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class Enemy : MonoBehaviour
 {
     [Header("属性")]
+    public bool canMove;
     public int health;
     public int Attackdamage;
     public float flashtime;
+    public Rigidbody2D Rig;
 
     public SpriteRenderer sr;
     private Color originalColor;

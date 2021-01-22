@@ -12,6 +12,7 @@ public class Player : FSM
         Jump,
         Attack,
         Glide,
+        Dash,
         Dead
     }
 
@@ -21,6 +22,7 @@ public class Player : FSM
 
     [Header("Move")]
     public float maxRunSpeed;
+    public float moveDir;
     public float currentSpeedX;
     public float currentSpeedY;
     public float AccelerateTime;
@@ -42,9 +44,21 @@ public class Player : FSM
     public PolygonCollider2D HitBox;
     public float attackStartTime;
     public float attackTime;
+    public bool isAttackButtonReleased = true;
 
     [Header("滑翔")]
     public float glideSpeedY;
+
+
+    [Header("冲刺")]
+    public float dashTime;
+    public float dashCoolDown;
+    public float dashSpeed;
+    public bool isDashReleased = true;
+    private bool isDashing;  
+    private float dashTimeLeft;
+    private float lastDash = -10f;
+    private float beforeDashSpeedX;
 
     [Header("重力调整")]
     public float gravity;
@@ -66,6 +80,8 @@ public class Player : FSM
     protected override void Initialize()
     {
         currentState = PlayerFSMState.Run;
+        beforeDashSpeedX = 0;
+        gravity = Rig.gravityScale;
     }
 
     protected override void FSMFixedUpdate()
@@ -73,6 +89,28 @@ public class Player : FSM
         animator.SetFloat("Horizontal", Mathf.Abs(Input.GetAxis("Horizontal")));
         Flip();
         isOnGround = OnGround();
+        if (Rig.velocity.x < -0.1f)
+        {
+            moveDir = -1.0f;
+        }
+        if (Rig.velocity.x > 0.1f)
+        {
+            moveDir = 1.0f;
+        }
+
+        if (Input.GetAxis("Jump") == 0)
+        {
+            isJumpingButtonReleased = true;
+        }
+        if (Input.GetAxis("Attack") == 0)
+        {
+            isAttackButtonReleased = true;
+        }
+        if (Input.GetAxis("Dash") == 0)
+        {
+            isDashReleased = true;
+        }
+
         switch (currentState)
         {
             case PlayerFSMState.Run:
@@ -90,7 +128,9 @@ public class Player : FSM
             case PlayerFSMState.Attack:
                 AttackState();
                 break;
-
+            case PlayerFSMState.Dash:
+                DashState();
+                break;
         }
     }
 
@@ -152,6 +192,7 @@ public class Player : FSM
     #region Run
     private void RunState()
     {
+        CanJump = true;
         HorizontalMove();
         if (!isOnGround)
         {
@@ -164,11 +205,25 @@ public class Player : FSM
             currentState = PlayerFSMState.Jump;
             Debug.Log("StateChange:Jump");
         }
-        if (Input.GetAxis("Attack") == 1)
+        if (Input.GetAxis("Attack") == 1 && isAttackButtonReleased)
         {
             lastState = currentState;
             currentState = PlayerFSMState.Attack;
             animator.SetTrigger("Attack");
+            isAttackButtonReleased = false;
+        }
+        if (Input.GetAxis("Dash") == 1 && isDashReleased)
+        {
+            Debug.Log("WantToDash");
+            isDashReleased = false;
+            if (Time.time >= (lastDash + dashCoolDown))
+            {
+                //执行dash
+                ReadyToDash();
+                lastState = currentState;
+                currentState = PlayerFSMState.Dash;
+                isDashReleased = false;
+            }
         }
     }
 
@@ -192,18 +247,31 @@ public class Player : FSM
         }
         if (Input.GetAxisRaw("Glide") == 1)
         {
-            gravity = Rig.gravityScale;
             currentState = PlayerFSMState.Glide;
         }
-        if (Input.GetAxis("Attack") == 1)
+        if (Input.GetAxis("Attack") == 1 && isAttackButtonReleased)
         {
             lastState = currentState;
             currentState = PlayerFSMState.Attack;
             animator.SetTrigger("Attack");
-            
+            isAttackButtonReleased = false;
+        }
+        if (Input.GetAxis("Dash") == 1 && isDashReleased)
+        {
+            Debug.Log("WantToDash");
+            isDashReleased = false;
+            if (Time.time >= (lastDash + dashCoolDown))
+            {
+                //执行dash
+                ReadyToDash();
+                lastState = currentState;
+                currentState = PlayerFSMState.Dash;
+                isDashReleased = false;
+            }
         }
     }
 
+    #region 跳跃
     private void JumpState()
     {
         HorizontalMove();
@@ -235,10 +303,6 @@ public class Player : FSM
                 }
             }
         }
-        if (!isJumpingButtonReleased && Input.GetAxis("Jump") == 0)
-        {
-            isJumpingButtonReleased = true;
-        }
         if (isOnGround && Time.time - JumpStartTime > 0.2f)
         {
             JumpTimes = 1;
@@ -247,22 +311,37 @@ public class Player : FSM
             Debug.Log("StateChange:Run");
         }
         if (Input.GetAxisRaw("Glide") == 1)
-        {
-            gravity=Rig.gravityScale;
+        {          
             currentState = PlayerFSMState.Glide;
         }
         if (transform.position.y < (JumpStartY - 0.1f))
         {
             currentState = PlayerFSMState.Drop;
         }
-        if (Input.GetAxis("Attack") == 1)
+        if (Input.GetAxis("Attack") == 1  && isAttackButtonReleased)
         {
             lastState = currentState;
             currentState = PlayerFSMState.Attack;
             animator.SetTrigger("Attack");
+            isAttackButtonReleased = false;
+        }
+        if (Input.GetAxis("Dash") == 1 && isDashReleased)
+        {
+            Debug.Log("WantToDash");
+            isDashReleased = false;
+            if (Time.time >= (lastDash + dashCoolDown))
+            {
+                //执行dash
+                ReadyToDash();
+                lastState = currentState;
+                currentState = PlayerFSMState.Dash;
+                isDashReleased = false;
+            }
         }
     }
+    #endregion
 
+    #region 滑翔
     private void GlideState()
     {
         HorizontalMove();
@@ -279,11 +358,12 @@ public class Player : FSM
         if (isOnGround)
         {
             Rig.gravityScale = gravity;
-            currentState = PlayerFSMState.Run;
-            
+            currentState = PlayerFSMState.Run;           
         }
     }
+    #endregion
 
+    #region 攻击
     private void AttackState()
     {
         HorizontalMove();
@@ -303,6 +383,34 @@ public class Player : FSM
         HitBox.enabled = false;
         currentState = lastState;
     }
+    #endregion
 
+    private void DashState()
+    {
+        if (isDashing)
+        {
+            if (dashTimeLeft > 0)
+            {
+                Rig.velocity = new Vector2(dashSpeed * moveDir, 0);
+                dashTimeLeft -= Time.fixedDeltaTime;
+                ObjectPool.instance.GetFromPool();
+            }
+            if (dashTimeLeft <= 0)
+            {
+                isDashing = false;
+                Rig.velocity = new Vector2(beforeDashSpeedX, 0);
+                Rig.gravityScale = gravity;
+                currentState = lastState;
+            }
+        }
+    }
 
+    private void ReadyToDash()
+    {
+        isDashing = true;
+        dashTimeLeft = dashTime;
+        lastDash = Time.time;
+        beforeDashSpeedX = currentSpeedX;
+        Rig.gravityScale = 0;
+    }
 }

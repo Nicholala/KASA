@@ -16,9 +16,17 @@ public class PlayerAttack : MonoBehaviour
             {
                 attackStartTime = Time.time;
                 Debug.Log("!");
-                other.GetComponent<Enemy>().TakenDamage(damage);
-                
+                other.GetComponent<Enemy>().TakenDamage(damage);              
             }  
+        }
+        if (other.gameObject.CompareTag("Door"))
+        {
+            if (Time.time - attackStartTime > attackIntervalTime)
+            {
+                attackStartTime = Time.time;
+                Debug.Log("!");
+                other.GetComponent<Door>().TakenDamage(damage);
+            }
         }
     }
 
